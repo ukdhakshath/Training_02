@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Serverless Login Demo</title>
+  <style>
+    * { box-sizing: border-box; } body { margin: 0; min-height: 100vh; display: grid; place-items: center; font: 16px system-ui, sans-serif; background: #f1f5f9; }
+    main { width: min(92vw, 360px); padding: 30px; background: white; border-radius: 14px; box-shadow: 0 8px 30px #0f172a15; }
+    h1 { font-size: 24px; margin-top: 0; } label { display: block; margin: 16px 0 6px; font-weight: 600; }
+    input, button { width: 100%; padding: 12px; border-radius: 8px; font: inherit; } input { border: 1px solid #cbd5e1; }
+    button { margin-top: 20px; border: 0; background: #2563eb; color: white; cursor: pointer; }
+    #status { min-height: 42px; margin-bottom: 0; } small { color: #64748b; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Simple Login</h1>
+  <small>Learning demo only. No real authentication/session.</small>
+  <form id="loginForm">
+    <label for="email">Email</label><input id="email" type="email" value="demo@example.com" required>
+    <label for="password">Password</label><input id="password" type="password" value="demo123" required>
+    <button type="submit">Login</button>
+  </form>
+  <p id="status" role="status" aria-live="polite"></p>
+</main>
+<script>
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const status = document.getElementById('status');
+    status.textContent = 'Checking...';
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({email: document.getElementById('email').value, password: document.getElementById('password').value})
+      });
+      const data = await res.json();
+      status.textContent = data.message || 'Unexpected response';
+      status.style.color = res.ok ? 'green' : 'crimson';
+    } catch { status.textContent = 'Could not reach the backend'; status.style.color = 'crimson'; }
+  });
+</script>
+</body></html>

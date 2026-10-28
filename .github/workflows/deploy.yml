@@ -1,0 +1,58 @@
+name: Deploy serverless login
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: serverless-login-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install SAM
+        uses: aws-actions/setup-sam@v2
+      - name: Configure AWS credentials from GitHub Secrets
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-east-1
+      - name: Verify credentials
+        run: aws sts get-caller-identity
+      - name: Test backend
+        run: node --test backend/app.test.js
+      - name: Validate and build SAM
+        run: |
+          sam validate --lint
+          sam build
+      - name: Deploy infrastructure
+        run: |
+          sam deploy \
+            --stack-name simple-login-dhak \
+            --region ap-east-1 \
+            --resolve-s3 \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset
+      - name: Upload frontend
+        run: |
+          BUCKET=$(aws cloudformation describe-stacks --stack-name simple-login-dhak --query 'Stacks[0].Outputs[?OutputKey==`WebsiteBucketName`].OutputValue' --output text)
+          test -n "$BUCKET"
+          aws s3 sync frontend/ "s3://$BUCKET/" --delete
+      - name: Invalidate CloudFront
+        run: |
+          DIST_ID=$(aws cloudformation describe-stacks --stack-name simple-login-dhak --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontDistributionId`].OutputValue' --output text)
+          test -n "$DIST_ID"
+          aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths '/*'
+      - name: Show website URL
+        run: |
+          aws cloudformation describe-stacks --stack-name simple-login-dhak --query 'Stacks[0].Outputs[?OutputKey==`WebsiteUrl`].OutputValue' --output text

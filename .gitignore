@@ -1,0 +1,6 @@
+.aws-sam/
+node_modules/
+.env
+*.pem
+*.key
+.DS_Store
